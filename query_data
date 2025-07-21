@@ -1,0 +1,79 @@
+WITH mental_diagnoses AS (
+  SELECT
+    d.SUBJECT_ID,
+    d.HADM_ID,
+    a.ADMITTIME,
+    a.DISCHTIME,
+    p.DOD,
+    p.GENDER,
+    a.MARITAL_STATUS,
+    a.INSURANCE,
+    a.ADMISSION_TYPE,
+    a.RELIGION,
+    a.ETHNICITY,
+    a.LANGUAGE
+  FROM `physionet-data.mimiciii_clinical.diagnoses_icd` d
+  JOIN `physionet-data.mimiciii_clinical.admissions` a
+    ON d.HADM_ID = a.HADM_ID
+  JOIN `physionet-data.mimiciii_clinical.patients` p
+    ON d.SUBJECT_ID = p.SUBJECT_ID
+  WHERE
+    SAFE_CAST(SUBSTR(d.ICD9_CODE, 0, 3) AS INT64) BETWEEN 290 AND 319
+),
+
+first_mental_admissions AS (
+  SELECT
+    SUBJECT_ID,
+    MIN(ADMITTIME) AS first_admit_time
+  FROM mental_diagnoses
+  GROUP BY SUBJECT_ID
+),
+
+cohort AS (
+  SELECT
+    m.SUBJECT_ID,
+    m.HADM_ID,
+    m.ADMITTIME,
+    m.DISCHTIME,
+    m.DOD,
+    m.GENDER,
+    m.MARITAL_STATUS,
+    m.INSURANCE,
+    m.ADMISSION_TYPE,
+    m.RELIGION,
+    m.ETHNICITY,
+    m.LANGUAGE,
+    CASE
+      WHEN m.DOD IS NOT NULL AND DATETIME_DIFF(m.DOD, m.DISCHTIME, DAY) <= 30 THEN 1
+      ELSE 0
+    END AS mortality_30d
+  FROM mental_diagnoses m
+  INNER JOIN first_mental_admissions f
+    ON m.SUBJECT_ID = f.SUBJECT_ID AND m.ADMITTIME = f.first_admit_time
+),
+
+cohort_with_gsn AS (
+  SELECT
+    c.*,
+    ARRAY_AGG(DISTINCT pr.GSN IGNORE NULLS) AS gsn_list
+  FROM cohort c
+  LEFT JOIN `physionet-data.mimiciii_clinical.prescriptions` pr
+    ON c.HADM_ID = pr.HADM_ID AND pr.GSN != ''
+  GROUP BY
+    c.SUBJECT_ID, c.HADM_ID, c.ADMITTIME, c.DISCHTIME, c.DOD,
+    c.GENDER, c.MARITAL_STATUS, c.INSURANCE, c.ADMISSION_TYPE,
+    c.RELIGION, c.ETHNICITY, c.LANGUAGE, c.mortality_30d
+)
+
+SELECT
+  cg.*,
+  ARRAY_AGG(DISTINCT d.ICD9_CODE IGNORE NULLS) AS procedure_icd9_list
+FROM cohort_with_gsn cg
+LEFT JOIN `physionet-data.mimiciii_clinical.procedures_icd` p
+  ON cg.SUBJECT_ID = p.SUBJECT_ID AND cg.HADM_ID = p.HADM_ID
+LEFT JOIN `physionet-data.mimiciii_clinical.d_icd_procedures` d 
+  ON p.ICD9_CODE = d.ICD9_CODE
+GROUP BY
+  cg.SUBJECT_ID, cg.HADM_ID, cg.ADMITTIME, cg.DISCHTIME, cg.DOD,
+  cg.GENDER, cg.MARITAL_STATUS, cg.INSURANCE, cg.ADMISSION_TYPE,
+  cg.RELIGION, cg.ETHNICITY, cg.LANGUAGE, cg.mortality_30d, cg.gsn_list
