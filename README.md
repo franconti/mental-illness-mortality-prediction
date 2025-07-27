@@ -15,11 +15,9 @@ Logistic Regression
 
 Random Forest
 
-Support Vector Machine (SVM)
+XGBoost
 
-K-Nearest Neighbors (KNN)
+K-Nearest Neighbors
 
 ## Key Findings
-The results indicate that Random Forest and Support Vector Machine models outperformed the others, achieving impressive AUC scores of 0.911.
-
-Models revealed that drug prescriptions, particularly Morphine Sulfate, played a pivotal role in predicting 30-day mortality.
+XGBoost was the best-performing model in predicting 30-day mortality. The model relied heavily on drug administrations and procedures recorded during hospitalization and not on demographic data. Notably, Medicare emerged as a significant feature, likely reflecting the higher baseline risk associated with older populations. Consistent with existing literature, Oxycodone-Acetaminophen ranked among the most important predictors. This may indicate that patients requiring stronger pain management are often those in more critical condition, thus linking opioid use with increased short-term mortality.
