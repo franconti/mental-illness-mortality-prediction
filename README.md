@@ -1,4 +1,4 @@
-# mental-illness-mortality-prediction
+# Mental illness mortality prediction
 Reproduction of paper "Automatic prediction of mortality in patients with mental illness using electronic health records" for predicting predict 30-day mortality in patients from clinical MIMIC-III data set
 https://arxiv.org/pdf/2310.12121
 
